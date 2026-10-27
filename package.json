@@ -8,10 +8,12 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "android:sync": "npm run build && npx cap sync android"
+    "android:sync": "npm run build && npx cap sync android",
+    "test": "node tests/run.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.3",
+    "compromise": "^14.19.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

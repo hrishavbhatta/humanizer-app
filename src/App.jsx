@@ -7,6 +7,7 @@ export default function App() {
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
   const [changes, setChanges] = useState([])
+  const [meter, setMeter] = useState(null)
   const [copied, setCopied] = useState(false)
   const [copyFailed, setCopyFailed] = useState(false)
   const outputPanel = useRef(null)
@@ -17,6 +18,7 @@ export default function App() {
     const r = humanize(input)
     setOutput(r.text)
     setChanges(r.changes)
+    setMeter({ before: r.before.score, after: r.after.score })
     setCopyFailed(false)
     // On a narrow screen the output sits below the input: bring it into view.
     if (window.matchMedia('(max-width: 767px)').matches) {
@@ -28,6 +30,7 @@ export default function App() {
     setInput('')
     setOutput('')
     setChanges([])
+    setMeter(null)
     setCopyFailed(false)
   }
 
@@ -98,6 +101,17 @@ export default function App() {
             {copied ? 'Copied!' : 'Copy'}
           </button>
         </div>
+        {meter && output && (
+          <div className="meter" role="img" aria-label={`AI-pattern score ${meter.before} before, ${meter.after} after, out of 100. Lower reads more natural.`}>
+            <p className="meter-line">
+              AI-pattern score: <strong>{meter.before} → {meter.after}</strong>
+            </p>
+            <div className="meter-bar">
+              <span className="was" style={{ width: `${meter.before}%` }} />
+              <span className="now" style={{ width: `${meter.after}%` }} />
+            </div>
+          </div>
+        )}
         {copyFailed && <p className="muted" role="alert">Could not copy automatically. The text is selected: use your phone's Copy option.</p>}
       </section>
       </div>

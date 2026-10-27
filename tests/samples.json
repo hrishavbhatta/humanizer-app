@@ -1,0 +1,54 @@
+[
+  {
+    "name": "school essay intro",
+    "text": "In today's digital age, technology has become an integral part of our daily lives. It is important to note that students now rely on devices to conduct research, complete assignments, and communicate with teachers. Furthermore, the rapid advancement of technology has significantly transformed the way education is delivered, creating new opportunities for learners around the world. However, it also raises concerns about distraction and unequal access. This essay will explore both the benefits and the drawbacks of technology in education."
+  },
+  {
+    "name": "social media essay",
+    "text": "Social media has transformed the way people communicate and share information. It allows individuals to connect with friends and family across the globe, fostering a sense of community. However, it also presents significant challenges, such as the spread of misinformation and concerns about privacy. Moreover, excessive use of social media can negatively impact mental health, leading to anxiety and depression. Therefore, it is essential for users to approach these platforms mindfully and responsibly. By understanding both the benefits and drawbacks, individuals can make informed decisions about their online presence."
+  },
+  {
+    "name": "email to professor",
+    "text": "Dear Professor Martinez,\n\nI hope this email finds you well. I am writing to request an extension on the research paper due on March 14. Due to the fact that I have been dealing with a family emergency, I have not been able to make the progress that I had planned. I would greatly appreciate the opportunity to submit the paper by March 21, which would allow me to provide a more thorough analysis. It is important to note that I have already completed 80% of the required reading. Thank you for your time and consideration. Please let me know if you have any questions.\n\nBest regards,\nAlex Chen"
+  },
+  {
+    "name": "product description",
+    "text": "Introducing the AeroPure 300, a cutting-edge air purifier that seamlessly blends style with performance. Nestled in a sleek aluminum frame, this device utilizes a robust three-stage filtration system to remove 99.97% of airborne particles as small as 0.3 microns. It boasts a whisper-quiet motor that runs at just 24 dB, making it ideal for bedrooms and offices. Additionally, the intuitive touch panel allows users to adjust settings with ease, providing a seamless experience. Priced at $149.99, it serves as an essential addition to any home."
+  },
+  {
+    "name": "cover letter",
+    "text": "Dear Hiring Manager,\n\nI am excited to apply for the Marketing Coordinator position at Brightwave Media. With over 3 years of experience in digital marketing, I have a proven track record of driving engagement and delivering results. In my previous role at Nova Agency, I conducted an analysis of customer behavior, resulting in a 35% increase in email click-through rates. I am confident that my skills would make me a valuable asset to your team. Furthermore, I am passionate about leveraging data to make informed decisions. I would welcome the opportunity to discuss how I can contribute to your continued success.\n\nSincerely,\nJordan Lee"
+  },
+  {
+    "name": "blog intro",
+    "text": "Have you ever wondered why some people seem to wake up full of energy while others struggle to get out of bed? The answer lies in the quality of your sleep. In this blog post, we will delve into the science of sleep and explore practical strategies that can help you improve your rest. Whether you are a busy professional or a night-shift worker, these tips will help you take action today. Let's dive in. A good night's sleep is not just a luxury, it is a necessity for your health and well-being."
+  },
+  {
+    "name": "history summary",
+    "text": "The Industrial Revolution began in Great Britain in the late 1700s and spread across Europe and North America during the 1800s. It marked a pivotal shift from hand production to machine manufacturing, fundamentally changing how goods were made. By 1850, roughly 50% of the British population lived in cities, up from about 20% in 1800. The invention of the steam engine by James Watt in 1769 played a crucial role in this transformation. Consequently, factory output rose sharply, leading to rapid urban growth and significant social change. The period left an indelible mark on the modern world."
+  },
+  {
+    "name": "science explanation",
+    "text": "Photosynthesis is the process by which plants convert light energy into chemical energy. It takes place primarily in the chloroplasts, which contain a green pigment called chlorophyll. During this process, plants absorb carbon dioxide from the air and water from the soil. The energy from sunlight is used to transform these ingredients into glucose and oxygen. This glucose serves as the main source of energy for the plant, while the oxygen is released into the atmosphere. Overall, photosynthesis plays a vital role in sustaining life on Earth, as it provides the oxygen that most organisms need to breathe."
+  },
+  {
+    "name": "essay with quoted dialogue",
+    "text": "The novel explores themes of loyalty and sacrifice. In the opening chapter, Maria tells her brother, \"We cannot leave without the others, and it is not up to us to decide.\" This moment sets the tone for the story, highlighting the importance of family bonds. Later, her brother responds, \"I do not know if I can do this, but I will try.\" These lines demonstrate how both characters struggle with responsibility. Ultimately, the author uses dialogue to create a sense of tension, allowing readers to understand each character's motivations."
+  },
+  {
+    "name": "markdown list with bold headings",
+    "text": "## Key Benefits Of Remote Work\n\nRemote work offers numerous advantages for both employees and employers. Here are the main points:\n\n- **Flexibility:** Employees can make a decision about when and where they work, which enhances their work-life balance.\n- **Cost Savings:** Companies utilize smaller offices, reducing overhead expenses by up to 30%.\n- **Wider Talent Pool:** Employers can obtain talent from anywhere in the world.\n\nIn conclusion, remote work is not just a trend, it is a lasting change in how we work."
+  },
+  {
+    "name": "protected spans and links",
+    "text": "For more details, visit https://example.com/guide/getting-started or email support@example.org. The command `npm run build` creates the production bundle, which is typically 2.5 MB in size. It is important to ensure that the file config.json exists before you commence the process. Version 3.2.1 was released on 12/05/2024 and has been downloaded more than 1,200,000 times, highlighting its popularity among developers."
+  },
+  {
+    "name": "hidden characters and look-alikes",
+    "text": "Th\u200Bis rep\u200Bort provides an overview of the proje\u0441t. It is e\u0455sential to underst\u0430nd the key findings. The team made a decision to launch the product in 2025, and it is expected to reach 4.2 million users. Moreover, the results demonstrate that the approach is effective."
+  },
+  {
+    "name": "business report with participle tails",
+    "text": "The company expanded its operations into three new regions last year, creating hundreds of new jobs. Sales increased by 18% in the third quarter, driven by strong demand for its mobile products. The management team also reduced shipping costs through a new logistics contract, allowing the firm to offer faster delivery. Customer satisfaction scores improved steadily, reaching an all-time high of 92 out of 100. Looking ahead, the leadership plans to invest in automation, ensuring that the company remains competitive in a rapidly changing market."
+  }
+]
