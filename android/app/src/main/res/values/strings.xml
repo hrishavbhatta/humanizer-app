@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Humanizer</string>
+    <string name="title_activity_main">Humanizer</string>
+    <string name="package_name">com.hrishavbhatta.humanizer</string>
+    <string name="custom_url_scheme">com.hrishavbhatta.humanizer</string>
+</resources>

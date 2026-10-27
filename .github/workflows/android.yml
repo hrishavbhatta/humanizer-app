@@ -1,0 +1,79 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: mv android/app/build/outputs/apk/debug/app-debug.apk Humanizer.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Humanizer-apk
+          path: Humanizer.apk
+
+      - name: Move the "latest" tag to this commit
+        run: |
+          git tag -f latest
+          git push -f origin latest
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Humanizer (latest build)
+          make_latest: true
+          files: Humanizer.apk
+          body: |
+            Latest build of the Humanizer Android app. It works fully offline.
+
+            **How to install**
+            1. On your phone, download `Humanizer.apk` from the Assets section below.
+            2. Open the downloaded file. If Android asks, allow your browser or file manager to "Install unknown apps".
+            3. Tap Install, then open Humanizer.
+
+            This is a debug-signed build, so Play Protect may show a warning. Choose "Install anyway".
