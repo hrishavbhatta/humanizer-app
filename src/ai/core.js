@@ -80,15 +80,24 @@ export function segment(text) {
   return segments
 }
 
-export const SYSTEM_PROMPT = 'You are a careful copy editor. You rewrite text so it reads like a person wrote it.'
+export const SYSTEM_PROMPT = 'You are a plain-spoken editor. You rewrite text in simple, everyday English.'
 
+// Tuned on Qwen2.5-0.5B-Instruct (see README): explicit rules beat a short instruction for keeping facts and
+// stopping the model from adding hype words; a one-shot example made it change more but also invent facts.
 export function instruction(chunk) {
-  return (
-    'Rewrite the text below in plain, natural English, the way a person would write it. ' +
-    'Keep every fact, name and number exactly. Vary the sentence length. Do not add new information. ' +
-    'Do not explain. Output only the rewritten text.\n\nText:\n' +
-    chunk
-  )
+  const rules = [
+    'Rewrite this text so it sounds like a person wrote it.',
+    'Rules:',
+    '- Use plain everyday words. No hype or dramatic words such as dramatically, seamlessly, pivotal, essential, profound.',
+    '- Keep the same facts in the same order. Keep every name and number exactly.',
+    '- Do not add any new claims or details.',
+    '- Mix short and long sentences. Keep about the same length.',
+    '- Reply with only the rewritten text.',
+    '',
+    'Text:',
+    chunk,
+  ]
+  return rules.join('\n')
 }
 
 // Qwen2.5 chat format (ChatML). The model file is used through MediaPipe, which does not apply a template itself.
@@ -148,7 +157,10 @@ const NON_LATIN = /[^p{Script=Latin}p{P}p{N}p{S}sp{M}]/u
 
 const CHATTER = /\b(?:here is|here's|here are|sure[,!.]|certainly[,!.]|of course[,!.]|rewritten|rewriting|rewrite[sd]?|paraphras\w*|as an ai|language model|i hope this|let me know|hope that helps|note that i)\b/i
 
-const hasLoop = (t) => {
+// Hype words small models like to add. A rewrite may not introduce any that the source did not have.
+const HYPE = /\b(?:dramatic\w*|remarkabl\w*|impressiv\w*|exceptional\w*|skyrocket\w*|soar\w*|surg\w*|cutting-edge|ever-evolving|game-chang\w*|stunning\w*|revolution\w*|profound\w*|transformative|unparalleled|seamless\w*|pivotal|tapestry|testament|vibrant|robust|strategic\w*|groundbreaking|state-of-the-art|world-class|unprecedented|indelible|crucial\w*)\b/gi
+
+const hasLoop =(t) => {
   const w = t.toLowerCase().match(/[a-z']+/g) || []
   const seen = new Map()
   for (let i = 0; i + 3 <= w.length; i++) {
@@ -158,6 +170,20 @@ const hasLoop = (t) => {
     if (n >= 3) return true
   }
   return false
+}
+
+const STOP = new Set('that this with from have been were will would their there which about into than then them they what when your also more some such only over very much just like even most both each other these those while where after before being could should'.split(' '))
+const stems = (s) => new Set((s.toLowerCase().match(/[a-z]{4,}/g) || []).filter((w) => !STOP.has(w)).map((w) => w.slice(0, 5)))
+
+/** Share of the source's content words kept, and share of the output's content words that are new. */
+export function overlap(src, out) {
+  const a = stems(src)
+  const b = stems(out)
+  let kept = 0
+  for (const k of a) if (b.has(k)) kept++
+  let fresh = 0
+  for (const k of b) if (!a.has(k)) fresh++
+  return { recall: a.size ? kept / a.size : 1, novelty: b.size ? fresh / b.size : 0 }
 }
 
 /** Returns { ok, reason } for a cleaned model output against its source chunk. */
@@ -174,6 +200,12 @@ export function validate(source, output) {
   if (/[.!?]["')\]]*$/.test(src) && !/[.!?]["')\]]*$/.test(out)) return { ok: false, reason: 'cut off' }
   if (!/^[A-Z0-9"'([]/.test(out) && /^[A-Z0-9"'([]/.test(src)) return { ok: false, reason: 'starts lowercase' }
 
+  const hypeIn = new Set((src.match(HYPE) || []).map((w) => w.toLowerCase()))
+  const newHype = (out.match(HYPE) || []).find((w) => !hypeIn.has(w.toLowerCase()))
+  if (newHype) return { ok: false, reason: `added hype word "${newHype}"` }
+  const o = overlap(src, out)
+  if (o.recall < 0.5 || o.novelty > 0.5) return { ok: false, reason: 'drifted from the source' }
+
   const have = new Map()
   for (const n of numbersOf(out)) have.set(n, (have.get(n) || 0) + 1)
   for (const n of numbersOf(src)) {
@@ -181,6 +213,9 @@ export function validate(source, output) {
     if (left < 0) return { ok: false, reason: `number ${n} missing` }
     have.set(n, left)
   }
+  // Numbers that were not in the source are invented facts.
+  const known = new Set(numbersOf(src))
+  for (const n of numbersOf(out)) if (!known.has(n)) return { ok: false, reason: `new number ${n}` }
   for (const name of namesOf(src)) {
     if (!out.includes(name)) return { ok: false, reason: `name ${name} missing` }
   }

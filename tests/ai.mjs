@@ -39,12 +39,15 @@ const good = 'The committee decided on 12 March, and Dr. Smith was happy with th
 expect(validate(src, good).ok, 'good rewrite rejected: ' + validate(src, good).reason)
 expect(!validate(src, 'The committee decided in March, and Dr. Smith was happy about it.').ok, 'dropped number accepted')
 expect(!validate(src, 'The committee decided on 12 March, and Dr. Jones was happy with the outcome.').ok, 'dropped name accepted')
+expect(!validate(src, 'The committee decided on 12 March, and Dr. Smith was happy with all 300 outcomes.').ok, 'invented number accepted')
+expect(!validate(src, 'The committee made a remarkable decision on 12 March, and Dr. Smith was happy with it.').ok, 'added hype word accepted')
 expect(!validate(src, 'Okay.').ok, 'too short accepted')
 expect(!validate(src, good + ' ' + good + ' ' + good).ok, 'too long accepted')
 expect(!validate(src, 'Here is a rewritten version: ' + good).ok, 'chatter accepted')
 expect(!validate(src, 'The committee decided on 12 March and Dr. Smith was happy with the').ok, 'cut-off accepted')
 expect(!validate(src, '委员会在 12 March 做出了决定, and Dr. Smith was happy with the outcome.').ok, 'foreign characters accepted')
 expect(!validate(src, 'The committee decided on 12 March. The committee decided on 12 March. The committee decided on 12 March. Dr. Smith.').ok, 'repetition accepted')
+expect(!validate(src, 'Something entirely different happened afterwards, with lots of invented detail about 12 March and Dr. Smith.').ok, 'drifted text accepted')
 expect(validate(src, src).ok, 'identical text should pass (it is simply unchanged)')
 
 // 4. Prompt shape.

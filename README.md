@@ -94,6 +94,7 @@ the result, so the AI-pattern score and the "What changed" list work as before.
   chatter, repetition loops, foreign characters, markdown and cut-off sentences are rejected. A bad chunk is retried
   once, then the original sentence is kept. If the AI engine itself fails, the app says "AI rewrite failed, used rules
   only" and runs the rules on your original text.
+- **Prototype results:** the prompt was tuned on a PC against the same model family (ONNX q4 build in transformers.js) on 4 samples. With the validator, about half of the passages were accepted and the rest kept their original (rule-engine) wording, so on those samples the mode changed less than it would without checks. Treat it as beta.
 - **Limits:** a 0.5B model is small. It can still drift from the meaning on technical text, so read the result. It
   needs roughly 1.5 GB of free memory and a few seconds per passage, so low-RAM phones may fail and fall back to
   rules. The web version has no AI mode and uses rules only.
