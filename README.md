@@ -70,6 +70,33 @@ with the score change, and checks the invariants: every number and protected spa
 no doubled words, double spaces or `",."` / `".."` artifacts, every sentence starts with a capital, the output is at
 most 15% longer, a second pass breaks nothing, and the result is deterministic. It exits non-zero on any failure, and
 the GitHub Action runs it before building. Add new samples to `tests/samples.json`; `npm test -- --quiet` prints scores only.
+`npm test` also runs `tests/ai.mjs`, which checks the AI-mode chunking, reply cleanup and validator without needing a model.
+
+## AI rewrite mode (Android, optional, beta)
+
+Rules can fix patterns but cannot reword a sentence. On Android you can switch on **AI rewrite (beta)**: a small
+language model that runs on the phone rewrites the text in short passages, and the rule engine above then polishes
+the result, so the AI-pattern score and the "What changed" list work as before.
+
+- **Model:** Qwen2.5-0.5B-Instruct, 8-bit, MediaPipe `.task` file from
+  [litert-community/Qwen2.5-0.5B-Instruct](https://huggingface.co/litert-community/Qwen2.5-0.5B-Instruct)
+  (about 521 MB, Apache-2.0, public, no login). It is not in the APK: the app downloads it once, the first time you
+  switch the option on (use Wi-Fi). The download can be cancelled and resumes where it stopped. After that the mode
+  works fully offline. "Delete AI model" in the app frees the space.
+- **Runtime:** [`@capgo/capacitor-llm`](https://github.com/Cap-go/capacitor-llm) (MPL-2.0) wraps Google's MediaPipe
+  LLM Inference. A small local plugin (`android/.../ModelFilesPlugin.java`) handles the model file (download with
+  resume and cancel, check, delete), because the Capgo plugin cannot cancel or delete. Android 8 (API 26) or newer.
+- **Privacy:** the text never leaves the phone. The only network use is the one-time model download.
+- **How it works:** `src/ai/core.js` splits the text into paragraphs, then into chunks of 1 to 3 sentences. Headings,
+  list items, quoted dialogue, code and links are never sent to the model. Each chunk is rewritten with a short
+  prompt (low temperature), cleaned of any "Here is the rewritten text:" chatter, and checked: every number and
+  capitalised name from the source must still be there, the length must be 60% to 140% of the source, and chat
+  chatter, repetition loops, foreign characters, markdown and cut-off sentences are rejected. A bad chunk is retried
+  once, then the original sentence is kept. If the AI engine itself fails, the app says "AI rewrite failed, used rules
+  only" and runs the rules on your original text.
+- **Limits:** a 0.5B model is small. It can still drift from the meaning on technical text, so read the result. It
+  needs roughly 1.5 GB of free memory and a few seconds per passage, so low-RAM phones may fail and fall back to
+  rules. The web version has no AI mode and uses rules only.
 
 ## Android app
 

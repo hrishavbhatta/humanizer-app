@@ -9,10 +9,11 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "android:sync": "npm run build && npx cap sync android",
-    "test": "node tests/run.mjs"
+    "test": "node tests/run.mjs && node tests/ai.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.3",
+    "@capgo/capacitor-llm": "8.1.11",
     "compromise": "^14.19.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

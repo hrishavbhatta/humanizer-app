@@ -2,14 +2,14 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, ai-model]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: android-build
+  group: android-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -60,11 +60,13 @@ jobs:
           path: Humanizer.apk
 
       - name: Move the "latest" tag to this commit
+        if: github.ref == 'refs/heads/main'
         run: |
           git tag -f latest
           git push -f origin latest
 
       - name: Publish GitHub Release
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
