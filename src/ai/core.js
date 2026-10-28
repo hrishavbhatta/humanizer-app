@@ -3,8 +3,10 @@
 // so tests/ai.mjs can run it in Node.
 
 const ABBREVIATIONS = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|sr|jr|st|vs|etc|inc|ltd|no|fig|e\.g|i\.e|u\.s|u\.k|[a-z])\.$/i
-const MAX_SENTENCES = 3
-const MAX_CHUNK_WORDS = 55
+// Bigger chunks mean fewer model calls (each call re-reads the instructions), so a long text finishes sooner.
+// Prompt (~70 tokens) + 80 words (~110) + reply (~150) stays well inside the 1024-token budget.
+const MAX_SENTENCES = 6
+const MAX_CHUNK_WORDS = 80
 
 const words = (s) => (s.trim() ? s.trim().split(/\s+/).length : 0)
 
@@ -25,10 +27,36 @@ export function splitSentences(paragraph) {
 
 /**
  * Split text into segments. { keep: true, text } segments are passed through untouched; { keep: false, text }
- * segments are 1 to 3 sentences of plain prose that go to the model. Joining all segment texts in order gives
- * back the original text exactly.
+ * segments are up to MAX_SENTENCES sentences of plain prose that go to the model. A chunk may span several short
+ * paragraphs (novels have many), so a long text needs fewer model calls; validate() rejects a rewrite that loses
+ * a paragraph break. Joining all segment texts in order gives back the original text exactly.
  */
 export function segment(text) {
+  // 1. Tokens: prose sentences, "soft" whitespace between them, and "hard" text the model must never see.
+  const tokens = []
+  const soft = (t) => t && tokens.push({ kind: 'soft', text: t })
+  const hard = (t) => t && tokens.push({ kind: 'hard', text: t })
+  for (const piece of text.split(/(\n+)/)) {
+    if (!piece) continue
+    if (/^\n+$/.test(piece) || !piece.trim()) {
+      soft(piece)
+      continue
+    }
+    // Headings, lists, code, tables, and short lines that are not a full sentence ("Not yet.", "Chapter 3").
+    if (STRUCTURAL_LINE.test(piece) || words(piece) < 4 || (words(piece) < 8 && !/[.!?]["')\]]*\s*$/.test(piece))) {
+      hard(piece)
+      continue
+    }
+    soft(piece.match(/^\s*/)[0])
+    splitSentences(piece.trim()).forEach((s, i) => {
+      if (i) soft(' ')
+      if (PROTECTED_SENTENCE.test(s) || words(s) < 4) hard(s)
+      else tokens.push({ kind: 'sentence', text: s, words: words(s) })
+    })
+    soft(piece.match(/\s*$/)[0])
+  }
+
+  // 2. Group neighbouring sentences (and the whitespace between them) into chunks.
   const segments = []
   const pushKeep = (t) => {
     if (!t) return
@@ -36,47 +64,32 @@ export function segment(text) {
     if (last && last.keep) last.text += t
     else segments.push({ keep: true, text: t })
   }
-
-  // Alternate: line, separator (newlines), line, ...
-  const pieces = text.split(/(\n+)/)
-  for (const piece of pieces) {
-    if (!piece) continue
-    if (/^\n+$/.test(piece) || !piece.trim() || STRUCTURAL_LINE.test(piece) || words(piece) < 8) {
-      pushKeep(piece)
-      continue
-    }
-    const lead = piece.match(/^\s*/)[0]
-    const trail = piece.match(/\s*$/)[0]
-    pushKeep(lead)
-    let first = true
-    const emitKeep = (t) => {
-      pushKeep((first ? '' : ' ') + t)
-      first = false
-    }
-    let group = []
-    let groupWords = 0
-    const flush = () => {
-      if (!group.length) return
-      if (!first) pushKeep(' ')
-      segments.push({ keep: false, text: group.join(' ') })
-      first = false
-      group = []
-      groupWords = 0
-    }
-    for (const s of splitSentences(piece.trim())) {
-      const w = words(s)
-      if (PROTECTED_SENTENCE.test(s) || w < 4) {
-        flush()
-        emitKeep(s)
-        continue
-      }
-      if (group.length && (group.length >= MAX_SENTENCES || groupWords + w > MAX_CHUNK_WORDS)) flush()
-      group.push(s)
-      groupWords += w
-    }
-    flush()
-    pushKeep(trail)
+  let cur = null // { text, sentences, words }
+  let gap = '' // whitespace after cur that is not part of it yet
+  const flush = () => {
+    if (cur) segments.push({ keep: false, text: cur.text })
+    cur = null
+    pushKeep(gap)
+    gap = ''
   }
+  for (const tok of tokens) {
+    if (tok.kind === 'soft') {
+      if (cur) gap += tok.text
+      else pushKeep(tok.text)
+    } else if (tok.kind === 'hard') {
+      flush()
+      pushKeep(tok.text)
+    } else if (cur && cur.sentences < MAX_SENTENCES && cur.words + tok.words <= MAX_CHUNK_WORDS) {
+      cur.text += gap + tok.text
+      cur.sentences++
+      cur.words += tok.words
+      gap = ''
+    } else {
+      flush()
+      cur = { text: tok.text, sentences: 1, words: tok.words }
+    }
+  }
+  flush()
   return segments
 }
 
@@ -85,16 +98,15 @@ export const SYSTEM_PROMPT = 'You are a plain-spoken editor. You rewrite text in
 // Tuned on Qwen2.5-0.5B-Instruct (see README): explicit rules beat a short instruction for keeping facts and
 // stopping the model from adding hype words; a one-shot example made it change more but also invent facts.
 export function instruction(chunk) {
+  // Kept short: the model re-reads this for every chunk, so every word here costs time on the phone.
   const rules = [
-    'Rewrite this text so it sounds like a person wrote it.',
-    'Rules:',
-    '- Use plain everyday words. No hype or dramatic words such as dramatically, seamlessly, pivotal, essential, profound.',
-    '- Keep the same facts in the same order. Keep every name and number exactly.',
-    '- Do not add any new claims or details.',
+    'Rewrite this so a person could have written it.',
+    '- Plain everyday words, no hype words.',
+    '- Keep every fact, name and number, in the same order. Add nothing new.',
     '- Mix short and long sentences. Keep about the same length.',
+    ...(/\n/.test(chunk) ? ['- Keep the same paragraph breaks.'] : []),
     '- Reply with only the rewritten text.',
     '',
-    'Text:',
     chunk,
   ]
   return rules.join('\n')
@@ -153,7 +165,7 @@ function namesOf(s) {
 }
 
 // Anything that is not Latin script, punctuation, digits, symbols or whitespace (CJK, Cyrillic, Arabic, ...).
-const NON_LATIN = /[^p{Script=Latin}p{P}p{N}p{S}sp{M}]/u
+const NON_LATIN = /[^\p{Script=Latin}\p{P}\p{N}\p{S}\s\p{M}]/u
 
 const CHATTER = /\b(?:here is|here's|here are|sure[,!.]|certainly[,!.]|of course[,!.]|rewritten|rewriting|rewrite[sd]?|paraphras\w*|as an ai|language model|i hope this|let me know|hope that helps|note that i)\b/i
 
@@ -198,6 +210,8 @@ export function validate(source, output) {
   if (/[\n]\s*(?:[-*•]|\d+[.)])\s/.test(out) || /^#{1,6}\s/.test(out) || /\*\*/.test(out)) return { ok: false, reason: 'formatting' }
   if (hasLoop(out) && !hasLoop(src)) return { ok: false, reason: 'repetition' }
   if (/[.!?]["')\]]*$/.test(src) && !/[.!?]["')\]]*$/.test(out)) return { ok: false, reason: 'cut off' }
+  // A chunk may span short paragraphs; the rewrite must keep every paragraph break.
+  if ((src.match(/\n+/g) || []).length !== (out.match(/\n+/g) || []).length) return { ok: false, reason: 'paragraphs changed' }
   if (!/^[A-Z0-9"'([]/.test(out) && /^[A-Z0-9"'([]/.test(src)) return { ok: false, reason: 'starts lowercase' }
 
   const hypeIn = new Set((src.match(HYPE) || []).map((w) => w.toLowerCase()))

@@ -1,6 +1,6 @@
 // Tests for the pure parts of the on-device AI rewrite (src/ai/core.js): chunking, reply cleanup, validation.
 import { readFileSync } from 'node:fs'
-import { segment, cleanOutput, validate, buildPrompt } from '../src/ai/core.js'
+import { segment, splitSentences, cleanOutput, validate, buildPrompt } from '../src/ai/core.js'
 
 const samples = JSON.parse(readFileSync(new URL('./samples.json', import.meta.url), 'utf8'))
 let failures = 0
@@ -17,11 +17,19 @@ for (const { name, text } of samples) {
   expect(segs.map((s) => s.text).join('') === text, `[${name}] segments do not join back to the input`)
   for (const s of segs.filter((x) => !x.keep)) {
     expect(!/["“”`]|https?:\/\//.test(s.text), `[${name}] chunk contains a quote/code/link: ${s.text.slice(0, 40)}`)
-    expect(!/^\s*(?:#{1,6}\s|[-*+]\s|\d+[.)]\s|>)/.test(s.text), `[${name}] chunk is a heading or list item`)
-    expect(!s.text.includes('\n'), `[${name}] chunk spans lines`)
-    expect(s.text.split(/\s+/).length <= 75, `[${name}] chunk too long`)
+    // A chunk may span short paragraphs, but none of its lines may be a heading or list item.
+    expect(!/(?:^|\n)\s*(?:#{1,6}\s|[-*+]\s|\d+[.)]\s|>)/.test(s.text), `[${name}] chunk contains a heading or list item`)
+    // At most 80 words, unless the chunk is one long sentence.
+    expect(s.text.split(/\s+/).length <= 80 || splitSentences(s.text).length === 1, `[${name}] chunk too long`)
   }
 }
+// Novel-style short paragraphs are grouped into one chunk (fewer model calls); lines that are not a full sentence stay out.
+const novel = 'Leon tightened his grip on the hilt of his sword.\n\nSomewhere behind him a horse screamed loudly.\n\nNot yet.\n\nHe did not look back at the burning camp.'
+const novelChunks = segment(novel).filter((s) => !s.keep)
+expect(novelChunks.length === 2 && novelChunks[0].text.includes('\n\n'), 'novel: short paragraphs should group, "Not yet." should split them')
+expect(segment(novel).map((s) => s.text).join('') === novel, 'novel: segments do not join back')
+expect(!validate('One two three four five.\n\nSix seven eight nine ten.', 'One two three four five. Six seven eight nine ten.').ok, 'lost paragraph break accepted')
+expect(!validate('The plan worked well.', 'План worked well.').ok, 'foreign characters accepted')
 const md = segment('# Title\n\nThis is a long enough paragraph of prose that goes to the model. It has two sentences.\n\n- first item in the list that is long enough to count\n- second')
 expect(md.filter((s) => !s.keep).length === 1, 'markdown: only the prose paragraph should be a chunk')
 const dlg = segment('She looked up and said, "We should leave now." Then she walked out of the room without another word to anyone.')

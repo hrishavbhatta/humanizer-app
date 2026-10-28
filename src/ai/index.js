@@ -47,7 +47,8 @@ export async function deleteModel() {
 class AiFailure extends Error {}
 
 async function rewriteChunk(chunk, signal, ctx) {
-  // Two tries. A try that comes back invalid is not an engine failure: we just keep the original text.
+  // One try per chunk: an invalid reply keeps the original text (the rules still polish it). A second
+  // try nearly doubled the run time for little gain. Only an engine error earns a retry, after a reload.
   for (let attempt = 0; attempt < 2; attempt++) {
     if (signal?.aborted) throw abortError()
     let raw
@@ -67,9 +68,28 @@ async function rewriteChunk(chunk, signal, ctx) {
     }
     ctx.engineErrors = 0
     const cleaned = cleanOutput(raw, chunk)
-    if (validate(chunk, cleaned).ok) return cleaned
+    return validate(chunk, cleaned).ok ? cleaned : null
   }
   return null
+}
+
+const finish = (text, joined, rewritten, total) => {
+  const r = humanize(joined)
+  return {
+    ...r,
+    before: analyze(text), // score the text the user pasted, not the intermediate AI text
+    changes: [{ label: `AI rewrite (${rewritten} of ${total} passages)` }, ...r.changes],
+    ai: { total, rewritten, kept: total - rewritten },
+  }
+}
+
+/** Thrown on cancel after some chunks were done: `partial` holds the finished result for the work so far. */
+export class AiStopped extends Error {
+  constructor(partial) {
+    super('Stopped')
+    this.name = 'AbortError'
+    this.partial = partial
+  }
 }
 
 /**
@@ -93,29 +113,37 @@ export async function rewriteWithAi(text, { onProgress = () => {}, signal } = {}
   const ctx = { path, engineErrors: 0 }
   let done = 0
   let rewritten = 0
-  const parts = []
-  onProgress({ done: 0, total })
-  for (const seg of segments) {
-    if (signal?.aborted) throw abortError()
-    if (seg.keep) {
-      parts.push(seg.text)
-      continue
+  const parts = segments.map((s) => s.text) // finished chunks replace their original text as they come in
+  const started = Date.now()
+  // partial: the text so far (rewritten chunks + originals still waiting), so the app can show it live.
+  // secondsLeft: average time per finished chunk times the chunks left; null until one chunk is done.
+  const report = () =>
+    onProgress({
+      done,
+      total,
+      partial: parts.join(''),
+      secondsLeft: done ? Math.round(((Date.now() - started) / done / 1000) * (total - done)) : null,
+    })
+  report()
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i]
+    if (seg.keep) continue
+    if (signal?.aborted) break
+    try {
+      const out = await rewriteChunk(seg.text, signal, ctx)
+      if (out) {
+        rewritten++
+        parts[i] = out
+      }
+    } catch (e) {
+      if (isAbort(e)) break
+      throw e
     }
-    onProgress({ done: done + 1, total })
-    const out = await rewriteChunk(seg.text, signal, ctx)
-    if (out) rewritten++
-    parts.push(out ?? seg.text)
     done++
+    report()
   }
+  // Cancelled: hand back what was finished so the time spent isn't lost.
+  if (signal?.aborted) throw rewritten ? new AiStopped(finish(text, parts.join(''), rewritten, total)) : abortError()
   if (total > 0 && rewritten === 0) throw new AiFailure('No AI rewrite passed the checks')
-
-  const joined = parts.join('')
-  const r = humanize(joined)
-  const ai = { total, rewritten, kept: total - rewritten }
-  return {
-    ...r,
-    before: analyze(text), // score the text the user pasted, not the intermediate AI text
-    changes: [{ label: `AI rewrite (${rewritten} of ${total} passages)` }, ...r.changes],
-    ai,
-  }
+  return finish(text, parts.join(''), rewritten, total)
 }

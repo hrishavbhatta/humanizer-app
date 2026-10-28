@@ -12,6 +12,9 @@ import {
 } from './ai/index.js'
 
 const countWords = (s) => (s.trim() ? s.trim().split(/\s+/).length : 0)
+
+// " · ~2 min left" / " · ~40 s left"; empty until the first passage has given a speed estimate.
+const timeLeft = (s) => (s == null || s <= 0 ? '' : s >= 90 ? ` · ~${Math.round(s / 60)} min left` : ` · ~${Math.max(5, Math.round(s / 5) * 5)} s left`)
 const AI_KEY = 'humanizer.aiRewrite'
 const AI_AVAILABLE = isAiAvailable()
 const readAiPref = () => {
@@ -105,10 +108,20 @@ export default function App() {
     const ctl = new AbortController()
     aiAbort.current = ctl
     setProgress({ done: 0, total: 0 })
+    setChanges([])
+    setMeter(null)
+    const onProgress = (p) => {
+      setProgress(p)
+      if (p.done) setOutput(p.partial) // show rewritten passages as soon as they are ready
+    }
     try {
-      show(await rewriteWithAi(input, { signal: ctl.signal, onProgress: setProgress }))
+      show(await rewriteWithAi(input, { signal: ctl.signal, onProgress }))
     } catch (e) {
-      if (isAbort(e)) {
+      if (e?.partial) {
+        show(e.partial)
+        setNotice(`Stopped early: ${e.partial.ai.rewritten} of ${e.partial.ai.total} passages were rewritten by AI, the rest by rules.`)
+      } else if (isAbort(e)) {
+        setOutput('')
         setNotice('Cancelled. Nothing was changed.')
       } else {
         setNotice('AI rewrite failed, used rules only.')
@@ -188,10 +201,10 @@ export default function App() {
       <div className="act">
       <div className="actions">
         <button className="btn primary" onClick={run} disabled={!input.trim() || busy}>
-          {busy ? (progress.total ? `Rewriting ${progress.done}/${progress.total}…` : 'Preparing AI…') : 'Humanize'}
+          {busy ? (progress.total ? `Rewriting ${progress.done}/${progress.total}${timeLeft(progress.secondsLeft)}…` : 'Preparing AI…') : 'Humanize'}
         </button>
         {busy ? (
-          <button className="btn" onClick={() => aiAbort.current?.abort()}>Cancel</button>
+          <button className="btn" onClick={() => aiAbort.current?.abort()}>{progress.done ? 'Stop' : 'Cancel'}</button>
         ) : (
           <button className="btn" onClick={clear} disabled={!input && !output}>Clear</button>
         )}
